@@ -1,28 +1,42 @@
 name: Daily Wikipedia Data Extraction
 
 on:
-
   workflow_dispatch:
-
   schedule:
     - cron: '0 8 * * *'
 
 jobs:
- build:
-  runs-on: ubuntu-latest
-  steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-       python-version: '3.11'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-    - name: Install Python dependencies
-      run: |
-       python -m pip install --upgrade pip
-       pip install requests
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
 
-    - name:
-      run: python extract.py
+      - name: Run data extraction script
+        id: extract_script # Give this step an ID to reference its output
+        run: python extract.py
+
+      # --- NEW STEP ---
+      # Step 5: Upload the generated data file to S3
+      - name: Upload data to S3
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1 # <-- IMPORTANT: Change this to your S3 bucket's region
+
+      - name: Copy file to S3
+        run: |
+          # The data/ folder is created by our python script
+          aws s3 cp data/ s3://wikipedia-raw-data-daso-007/ --recursive
+          #          ^ IMPORTANT: Change this to your exact S3 bucket name
